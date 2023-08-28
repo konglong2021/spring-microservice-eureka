@@ -1,0 +1,25 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/product/**
+          filters:
+            - AuthenticationFilter
+
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+              - Path=/api/inventory/**
+
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+              - Path=/api/order/**
+
+        - id: identity-service
+          uri: lb://identity-service
+          predicates:
+              - Path=/auth/**

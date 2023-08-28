@@ -1,0 +1,67 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  postgres:
+    image: postgres:13.12-alpine3.18
+    container_name: postgres_springBoot
+    restart: always
+    volumes:
+      - ./data/postgres/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: abitecha_chamka
+    ports:
+      - 5000:5432
+  user:
+    image: postgres:13.12-alpine3.18
+    container_name: user_springBoot
+    restart: always
+    volumes:
+      - ./data/user/data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: user_credential
+    ports:
+      - 5001:5432
+
+  mysql:
+    image: mysql:5.7
+    restart: always
+    container_name: mysql_springBoot
+    environment:
+      MYSQL_DATABASE: 'order-service'
+      # So you don't have to use root, but you can if you like
+      MYSQL_USER: 'user'
+      # You can use whatever password you like
+      MYSQL_PASSWORD: 'password'
+      # Password for root access
+      MYSQL_ROOT_PASSWORD: 'password'
+    ports:
+      # <Port exposed> : <MySQL Port running inside container>
+      - '3306:3306'
+    expose:
+      # Opens port 3306 on the container
+      - '3306'
+      # Where our data will be persisted
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+
+  mongdb:
+    image: mongo:6-jammy
+    container_name: mongo_springBoot
+    ports:
+      - '27017:27017'
+    volumes:
+      - ./data/mongdb:/data/db
