@@ -67,6 +67,7 @@ public class OrderController {
                     .allMatch(updateStockDto -> inventoryClient.updateInventory(updateStockDto));
 
             rabbitMQProducer.sendMessage("Order Place Successfully");
+            rabbitMQProducer.sendJsonMessage(orderDto);
 
 
             return stockUpdated ? "Order Place Successfully" : "Order failed , One products in the order is not in stock";
