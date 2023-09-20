@@ -33,7 +33,7 @@ public class InventoryController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     Boolean updateInventory(@RequestBody updateStockDto updateStockDto){
         Inventory inventory = inventoryRepository.findBySkuCode(updateStockDto.getSkuCode()).orElseThrow(() -> new EntityNotFoundException("Cannot find product by sku code "+ updateStockDto.getSkuCode()));
-        inventory.setStock(inventory.getStock() - updateStockDto.getQuantity());  ;
+        inventory.setStock(inventory.getStock() - updateStockDto.getQuantity());
         inventoryRepository.save(inventory);
         return true;
     }

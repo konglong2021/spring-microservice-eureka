@@ -1,6 +1,7 @@
 package com.bronx.orderservice.config;
 
 import com.bronx.orderservice.dto.OrderDto;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -29,9 +30,16 @@ public class RabbitMQProducer {
         rabbitTemplate.convertAndSend(exchange,routingKey,message);
     }
 
-    public void sendJsonMessage(OrderDto orderDto){
+    @CircuitBreaker(name = "product-service",fallbackMethod = "failSentMessage")
+    public boolean sendJsonMessage(OrderDto orderDto){
         LOGGER.info(String.format("Json message sent -> %s", orderDto.toString()));
         rabbitTemplate.convertAndSend(exchange,routingJsonKey,orderDto);
+        return true;
+    }
+
+    public boolean failSentMessage(OrderDto orderDto,Exception exception){
+        //LOGGER.info(String.format("Message Fail -> ",data.toString()));
+        return false;
     }
 
 

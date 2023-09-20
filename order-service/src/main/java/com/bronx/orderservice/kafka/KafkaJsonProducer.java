@@ -1,6 +1,7 @@
 package com.bronx.orderservice.kafka;
 
 import com.bronx.orderservice.dto.updateStockDto;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -21,6 +22,7 @@ public class KafkaJsonProducer<T> {
         this.kafkaTemplate = kafkaTemplate;
     }
 
+
     public void sendMessage(T data,String topic){
         LOGGER.info(String.format("Message Sent -> ",data.toString()));
         Message<T> message = MessageBuilder
@@ -29,4 +31,5 @@ public class KafkaJsonProducer<T> {
                 .build();
         kafkaTemplate.send(message);
     }
+
 }

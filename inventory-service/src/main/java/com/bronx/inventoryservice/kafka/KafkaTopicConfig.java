@@ -13,4 +13,10 @@ public class KafkaTopicConfig {
         return TopicBuilder.name("orderTopic")
                 .build();
     }
+
+    @Bean
+    public NewTopic inventoryTopic(){
+        return TopicBuilder.name("inventoryTopic")
+                .build();
+    }
 }

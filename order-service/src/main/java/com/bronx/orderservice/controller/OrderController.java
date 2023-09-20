@@ -4,14 +4,14 @@ import com.bronx.orderservice.client.InventoryClient;
 import com.bronx.orderservice.config.RabbitMQProducer;
 import com.bronx.orderservice.dto.OrderDto;
 import com.bronx.orderservice.dto.updateStockDto;
+import com.bronx.orderservice.kafka.KafkaConsumer;
 import com.bronx.orderservice.kafka.KafkaJsonProducer;
 import com.bronx.orderservice.model.Order;
 import com.bronx.orderservice.repository.OrderRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreaker;
-import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,31 +29,29 @@ public class OrderController {
 
     private final OrderRepository orderRepository;
     private final InventoryClient inventoryClient;
-    private final Resilience4JCircuitBreakerFactory circuitBreakerFactory;
 
     @Autowired
     private final RabbitMQProducer rabbitMQProducer;
     @Autowired
 //    private final KafkaProducer kafkaProducer;
     private final KafkaJsonProducer<List<updateStockDto>> kafkaJsonProducer;
-    private final KafkaJsonProducer<String> kafkaProducer;
+    @Autowired
+    private final KafkaConsumer kafkaConsumer;
 
+    @CircuitBreaker(name ="orderService", fallbackMethod = "handleErrorCase")
     @PostMapping
-    public String placeOrder(@RequestBody OrderDto orderDto){
+    public String placeOrder(@RequestBody OrderDto orderDto) throws InterruptedException {
 
-        //Circuit Breaker here
-        Resilience4JCircuitBreaker circuitBreaker = circuitBreakerFactory.create("inventory");
-        Supplier<Boolean> booleanSupplier = () -> orderDto.getOrderLineItemsList().stream()
-                .allMatch(orderLineItems -> inventoryClient.checkStock(orderLineItems.getSkuCode(),orderLineItems.getQuantity()));
+//        Supplier<Boolean> booleanSupplier = () -> orderDto.getOrderLineItemsList().stream()
+//                .allMatch(orderLineItems -> inventoryClient.checkStock(orderLineItems.getSkuCode(),orderLineItems.getQuantity()));
 
-       boolean allProductsInstock = circuitBreaker.run(booleanSupplier,throwable -> handleErrorCase());
+//       boolean allProductsInstock = circuitBreaker.run(booleanSupplier,throwable -> handleErrorCase());
 
+        boolean allProductsInstock =orderDto.getOrderLineItemsList().stream().
+                allMatch(orderLineItems -> inventoryClient.checkStock(orderLineItems.getSkuCode(),orderLineItems.getQuantity()));
+//        boolean allProductsInstock = true;
 
         if (allProductsInstock){
-            Order order = new Order();
-            order.setOrderLineItems(orderDto.getOrderLineItemsList());
-            order.setOrderNumber(UUID.randomUUID().toString());
-            orderRepository.save(order);
 
             List<updateStockDto> updateStockDtoList = orderDto.getOrderLineItemsList().stream().map(
                     orderLineItems -> {
@@ -65,22 +62,36 @@ public class OrderController {
                     }
             ).collect(Collectors.toList());
 
-            boolean stockUpdated = updateStockDtoList.stream()
-                    .allMatch(updateStockDto -> inventoryClient.updateInventory(updateStockDto));
+            boolean sent = rabbitMQProducer.sendJsonMessage(orderDto);
+            if (sent){
+                kafkaJsonProducer.sendMessage(updateStockDtoList,"orderTopic");
+                Thread.sleep(1000);
+                boolean inventoryStatus = kafkaConsumer.getInventoryStatus();
+                    Order order = new Order();
+                    order.setOrderLineItems(orderDto.getOrderLineItemsList());
+                    order.setOrderNumber(UUID.randomUUID().toString());
+                    orderRepository.save(order);
 
-            kafkaJsonProducer.sendMessage(updateStockDtoList,"orderTopic");
-            kafkaProducer.sendMessage("This is String Message","orderTopic");
-            rabbitMQProducer.sendJsonMessage(orderDto);
-
-
-            return stockUpdated ? "Order Place Successfully" : "Order failed , One products in the order is not in stock";
+            }else {
+                return "Product Service is down";
+            }
+            // Use feign to update inventory
+//            boolean stockUpdated = updateStockDtoList.stream()
+//                    .allMatch(updateStockDto -> inventoryClient.updateInventory(updateStockDto));
+//            return stockUpdated ? "Order Place Successfully" : "Order failed , One products in the order is not in stock";
+            return  "Order Place Successfully";
         }else {
             return "Order failed , One products in the order is not in stock";
         }
 
     }
 
-    private Boolean handleErrorCase() {
-        return false;
+    public String productServiceDown()
+    {
+        return "Product Service is down";
+    }
+
+    private String handleErrorCase(@RequestBody OrderDto orderDto,Throwable throwable){
+        return "Inventory Service is down";
     }
 }
