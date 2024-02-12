@@ -9,6 +9,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,7 @@ public class JwtService {
             Map<String,Object> claims = new HashMap<>();
             return createToken(claims,authRequestDto.getUsername());
         }
-        throw new RuntimeException("Invalid access");
+        throw new BadCredentialsException("Invalid access");
     }
 
     private String createToken(Map<String, Object> claims, String userName) {

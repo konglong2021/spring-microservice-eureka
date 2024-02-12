@@ -17,7 +17,8 @@ public class UserDetailService implements UserDetailsService {
     private UserCredentialRepository userCredentialRepository;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Optional<UserCredential> userCredential = userCredentialRepository.findByName(username);
-        return userCredential.map(UserDetail::new).orElseThrow(()-> new UsernameNotFoundException("invalid username : "+username));
+        UserCredential userCredential = userCredentialRepository.findByEmail(username);
+//        return userCredential.map(UserDetail::new).orElseThrow(()-> new UsernameNotFoundException("invalid username : "+username));
+        return new UserDetail(userCredential);
     }
 }

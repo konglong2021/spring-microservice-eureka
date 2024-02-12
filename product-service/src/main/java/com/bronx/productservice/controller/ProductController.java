@@ -29,4 +29,9 @@ public class ProductController {
     public void createProduct(@RequestBody Product product){
         productRepository.save(product);
     }
+
+    @GetMapping("/check/{skuCode}")
+    public Boolean checkProductExisted(@PathVariable String skuCode){
+        return productRepository.existsProductBySkuCode(skuCode);
+    }
 }
